@@ -7,7 +7,7 @@
 
 using namespace std;
 
-enum Etat {IDLE,DIAG,DL,MOLECULE,GET_MOL,LAB,ASM};
+enum Etat {IDLE,SAMP,DIAG,DL,MOLECULE,GET_MOL,LAB,ASM};
 enum MOL {A,B,C,D,E};
 
 class Sample
@@ -97,8 +97,8 @@ int main()
         Robot *r[2];
         Sample *sample;
 
-        int bestGain = 0;
-        int idBestGain = 0;
+        int bestGain = -1;
+        int idBestGain = -1;
 
         string target;
         int eta, score;
@@ -132,12 +132,15 @@ int main()
             int costA, costB, costC, costD, costE;
             cin >> sampleId >> carriedBy >> rank >> expertiseGain >> health >> costA >> costB >> costC >> costD >> costE;
             cin.ignore();
-
-          if(bestGain < health && carriedBy != 1)
+/*
+            cerr << sampleId << endl;
+            cerr << carriedBy << endl;
+            cerr << rank << endl;
+            cerr << health << endl;
+            cerr << costA << " " << costB << " " << costC << " " << costD << " " << costE << endl;
+*/
+          if(carriedBy == 0)
           {
-            bestGain = health;
-            idBestGain = sampleId;
-
             sample = new Sample(sampleId,health,costA,costB,costC,costD,costE);
           }
         }
@@ -145,12 +148,22 @@ int main()
         switch(e)
         {
           case IDLE:
-            cout << "GOTO DIAGNOSIS" << endl;
+            cout << "GOTO SAMPLES" << endl;
+            e = SAMP;
+          break;
+
+          case SAMP:
+            cout << "CONNECT 2" << endl; //rank
             e = DIAG;
           break;
 
           case DIAG:
-            cout << "CONNECT " << idBestGain << endl;
+            cout << "GOTO DIAGNOSIS" << endl;
+            e = DL;
+          break;
+
+          case DL:
+            cout << "CONNECT " << sample->a_sampleId << endl;
             e = MOLECULE;
           break;
 
@@ -160,8 +173,14 @@ int main()
           break;
 
           case GET_MOL:
-            cerr << sample->a_cost[0] << " " << sample->a_cost[1] << " " << sample->a_cost[2] << " " << sample->a_cost[3] << " " << sample->a_cost[4] << endl;
-            cerr << r[0]->a_storage[0] << endl;
+            for(int i=0;i<5;i++)
+              cerr << r[0]->a_storage[i] << " ";
+            cerr << endl;
+
+            for(int i=0;i<5;i++)
+              cerr << sample->a_cost[i] << " ";
+            cerr << endl;
+
             if(r[0]->a_storage[0] < sample->a_cost[0])
               cout << "CONNECT A" << endl;
             else if(r[0]->a_storage[1] < sample->a_cost[1])
@@ -177,8 +196,6 @@ int main()
               e = ASM;
               cout << "GOTO LABORATORY" << endl;
             }
-
-            cerr << e << endl;
           break;
 
           case ASM:
