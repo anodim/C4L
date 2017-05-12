@@ -9,7 +9,7 @@
 
 using namespace std;
 
-enum Etat {IDLE,SAMP,DIAG,DL,MOLECULE,GET_MOL,LAB,ASM,RESET};
+enum Etat {IDLE,SAMP,DIAG,DL,MOLECULE,PRE_MOL,GET_MOL,LAB,ASM,RESET};
 enum MOL {A,B,C,D,E};
 
 class Sample
@@ -67,6 +67,7 @@ public:
     Robot(string target, int eta, int score, int storageA, int storageB, int storageC, int storageD, int storageE)
     {
         init(target,eta,score,storageA,storageB,storageC,storageD,storageE);
+        a_moleculesCarry = 0;
     }
 
     void init(string target, int eta, int score, int storageA, int storageB, int storageC, int storageD, int storageE)
@@ -79,7 +80,6 @@ public:
         a_storage[MOL::C] = storageC;
         a_storage[MOL::D] = storageD;
         a_storage[MOL::E] = storageE;
-        a_moleculesCarry = 0;
     }
 };
 
@@ -108,6 +108,7 @@ int main()
         cin.ignore();
     }
 
+    me.a_moleculesCarry = 0;
     // game loop
     while (1)
     {
@@ -175,6 +176,10 @@ int main()
             }
         }
 
+        int sampleCanBeDone;
+        bool sampleComplete;
+        bool outDone;
+
         switch(e)
         {
         case IDLE:
@@ -183,29 +188,22 @@ int main()
             break;
 
         case RESET:
-          if(me.a_eta == 0)
-            {
-                cout << "CONNECT " << sample[0].a_sampleId << endl;
-                nbIdentify--;
-                nbSampleCarryUp--;
-                if(nbIdentify == 0)
-                    e = IDLE;
-            }
-            else
-            {
-                cout << "WAIT -> ->" << endl;
-            }
-        break;
+            cout << "CONNECT " << sample[0].a_sampleId << endl;
+            nbIdentify--;
+            nbSampleCarryUp--;
+            if(nbIdentify == 0)
+                e = IDLE;
+            break;
 
         case SAMP:
             if(me.a_eta == 0)
             {
                 if(nbSampleCarryUp == 0)
-                  cout << "CONNECT 3" << endl; //rank
+                    cout << "CONNECT 2" << endl; //rank
                 else if(nbSampleCarryUp == 1)
-                  cout << "CONNECT 1" << endl; //rank
+                    cout << "CONNECT 1" << endl; //rank
                 else
-                  cout << "CONNECT 2" << endl;
+                    cout << "CONNECT 3" << endl;
 
                 nbSampleCarryUp++;
                 if(nbSampleCarryUp == 3)
@@ -237,89 +235,100 @@ int main()
             break;
 
         case MOLECULE:
-            cout << "GOTO MOLECULES" << endl;
-            e = GET_MOL;
+            sampleCanBeDone = -1;
+
+            for(int i = 0; i<SAMPLE_DATA_FILES_MAX; i++)
+            {
+                int nbCheck = 0;
+                for(int j=0; j<5; j++)
+                {
+                    if(sample[i].a_cost[j]<=available[j]+me.a_storage[j])
+                    {
+                        nbCheck++;
+                    }
+                }
+                if(nbCheck == 5)
+                {
+                    sampleCanBeDone = i;
+                }
+            }
+
+            if(sampleCanBeDone == -1)
+            {
+                //cout << "WAIT cant be done "<< endl;
+                cout << "GOTO DIAGNOSIS" << endl;
+                e = RESET;
+            }
+            else
+            {
+                cout << "GOTO MOLECULES" << endl;
+                e = GET_MOL;
+            }
+            break;
+
+        case PRE_MOL:
+            if(me.a_eta == 0)
+            {
+                e = GET_MOL;
+            }
+            else
+            {
+                cout << "WAIT ->MOLECULE(" << me.a_eta << ")" <<  endl;
+            }
             break;
 
         case GET_MOL:
+
+            /*
+                            for(int i=0;i<5;i++)
+                              cerr << me.a_storage[i] << " ";
+                            cerr << endl;
+
+                            for(int i=0;i<5;i++)
+                              cerr << sample[nbSampleCarryUp].a_cost[i] << " ";
+                            cerr << endl;
+            /**/
+
             if(me.a_eta == 0)
             {
-                /*
-                                for(int i=0;i<5;i++)
-                                  cerr << me.a_storage[i] << " ";
-                                cerr << endl;
+                outDone = false;
 
-                                for(int i=0;i<5;i++)
-                                  cerr << sample[nbSampleCarryUp].a_cost[i] << " ";
-                                cerr << endl;
-                /**/
-
-                int sampleCanBeDone = -1;
-
-                for(int i = 0; i<SAMPLE_DATA_FILES_MAX; i++)
+                for(int i=0; i<5; i++)
                 {
-                    int nbCheck = 0;
-                    for(int j=0; j<5; j++)
+                    if(me.a_storage[i] < sample[sampleCanBeDone].a_cost[i] && available[i]>0 && me.a_moleculesCarry < 10 && outDone == false)
                     {
-                        if(sample[i].a_cost[j]<=available[j]+me.a_storage[j])
-                        {
-                            nbCheck++;
-                        }
-                    }
-                    if(nbCheck == 5)
-                    {
-                        sampleCanBeDone = i;
+                        cout << "CONNECT " << (char)('A'+i) << endl;
+                        me.a_moleculesCarry++;
+                        outDone = true;
                     }
                 }
 
-                if(sampleCanBeDone == -1)
+                sampleComplete = false;
+
+                for(int i=0; i<SAMPLE_DATA_FILES_MAX; i++)
                 {
-                    //cout << "WAIT cant be done "<< endl;
-                    cout << "GOTO DIAGNOSIS" << endl;
-                    e = RESET;
+                    if(sampleComplete == false &&
+                            me.a_storage[0] >= sample[i].a_cost[0] &&
+                            me.a_storage[1] >= sample[i].a_cost[1] &&
+                            me.a_storage[2] >= sample[i].a_cost[2] &&
+                            me.a_storage[3] >= sample[i].a_cost[3] &&
+                            me.a_storage[4] >= sample[i].a_cost[4])
+                    {
+                        e = ASM;
+                        sampleComplete = true;
+                        sampleFaisable = i;
+                        cout << "GOTO LABORATORY" << endl;
+                    }
                 }
 
-                else
+                if(sampleComplete == false && outDone == false)
                 {
-                    bool outDone = false;
-
-                    for(int i=0; i<5; i++)
-                    {
-                      cerr << available[i] << endl;
-                        if(me.a_storage[i] < sample[sampleCanBeDone].a_cost[i] && available[i]>0 && me.a_moleculesCarry <= 10 && outDone == false)
-                        {
-                            cout << "CONNECT " << (char)('A'+i) << endl;
-                            me.a_moleculesCarry++;
-                            outDone = true;
-                        }
-                    }
-
-                    bool sampleComplete = false;
-
-                    for(int i=0; i<SAMPLE_DATA_FILES_MAX; i++)
-                    {
-                        if(me.a_storage[0] >= sample[i].a_cost[0] &&
-                                me.a_storage[1] >= sample[i].a_cost[1] &&
-                                me.a_storage[2] >= sample[i].a_cost[2] &&
-                                me.a_storage[3] >= sample[i].a_cost[3] &&
-                                me.a_storage[4] >= sample[i].a_cost[4] &&
-                                sampleComplete == false)
-                        {
-                            e = ASM;
-                            sampleComplete = true;
-                            sampleFaisable = i;
-                            cout << "GOTO LABORATORY" << endl;
-                        }
-                    }
-                    if(sampleComplete == false && outDone == false)
-                    {
-                        cout << "WAIT pas de recup ni de sample completer" << endl; // faire quelque chose de plus inteligent dans le future
-                    }
+                    cout << "WAIT pas de recup ni de sample completer" << endl; // faire quelque chose de plus inteligent dans le future
                 }
             }
             else
             {
-                cout << "WAIT -> -> ->" << endl;
+                cout << "WAIT ->MOLECULE(" << me.a_eta << ")" <<  endl;
             }
             break;
 
@@ -327,8 +336,8 @@ int main()
             if(me.a_eta == 0)
             {
                 cout << "CONNECT " << sample[sampleFaisable].a_sampleId <<  endl;
-                for(int i=0;i<5;i++)
-                  me.a_moleculesCarry -= sample[sampleFaisable].a_cost[i];
+                for(int i=0; i<5; i++)
+                    me.a_moleculesCarry -= sample[sampleFaisable].a_cost[i];
 
                 nbIdentify--;
                 nbSampleCarryUp--;
