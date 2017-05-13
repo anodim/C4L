@@ -19,6 +19,7 @@ public:
     int a_sampleId;
     int a_health;
     int a_cost[5];
+    int a_rank;
 
     Sample()
     {
@@ -36,7 +37,7 @@ public:
         a_cost[4] = costE;
     }
 
-    void setSample(int id, int health,int costA,int costB,int costC,int costD,int costE)
+    void setSample(int id, int health,int costA,int costB,int costC,int costD,int costE,int rankS)
     {
         a_sampleId = id;
         a_health = health;
@@ -45,6 +46,8 @@ public:
         a_cost[2] = costC;
         a_cost[3] = costD;
         a_cost[4] = costE;
+
+        a_rank = rankS;
     }
 
     void infoDebug()
@@ -123,49 +126,65 @@ public:
 
         if(a_moleculesCarry == 10)
         {
-         for(int i = 0; i<sample.size(); i++)
-        {
-          nbMolTotal = 0;
-          if(sample[i].a_health != -1)
-          {
-            int nbCheck = 0;
-            for(int j=0; j<5; j++)
+            for(int i = 0; i<sample.size(); i++)
             {
-                if(sample[i].a_cost[j]<=a_storage[j]+a_expertise[j])
+                nbMolTotal = 0;
+                if(sample[i].a_health != -1)
                 {
-                    nbCheck++;
-                    nbMolTotal += sample[i].a_cost[j]-a_expertise[j];
+                    int nbCheck = 0;
+                    for(int j=0; j<5; j++)
+                    {
+                        if(sample[i].a_cost[j]<=a_storage[j]+a_expertise[j])
+                        {
+                            nbCheck++;
+                            nbMolTotal += sample[i].a_cost[j]-a_expertise[j];
+                        }
+                    }
+                    if(nbCheck == 5 && nbMolTotal <= 10)
+                    {
+                        if(sampleCanBeDone != -1)
+                        {
+                            if(sample[i].a_rank>sample[sampleCanBeDone].a_rank)
+                            {
+                                sampleCanBeDone = i;
+                            }
+                        }
+                        else
+                            sampleCanBeDone = i;
+                    }
                 }
             }
-            if(nbCheck == 5 && nbMolTotal <= 10)
-            {
-                sampleCanBeDone = i;
-            }
-          }
-        }
         }
         else
         {
-        for(int i = 0; i<sample.size(); i++)
-        {
-          nbMolTotal = 0;
-          if(sample[i].a_health != -1)
-          {
-            int nbCheck = 0;
-            for(int j=0; j<5; j++)
+            for(int i = 0; i<sample.size(); i++)
             {
-                if(sample[i].a_cost[j]<=available[j]+a_storage[j]+a_expertise[j])
+                nbMolTotal = 0;
+                if(sample[i].a_health != -1)
                 {
-                    nbCheck++;
-                    nbMolTotal += sample[i].a_cost[j]-a_expertise[j];
+                    int nbCheck = 0;
+                    for(int j=0; j<5; j++)
+                    {
+                        if(sample[i].a_cost[j]<=available[j]+a_storage[j]+a_expertise[j])
+                        {
+                            nbCheck++;
+                            nbMolTotal += sample[i].a_cost[j]-a_expertise[j];
+                        }
+                    }
+                    if(nbCheck == 5 && nbMolTotal <= 10)
+                    {
+                        if(sampleCanBeDone != -1)
+                        {
+                            if(sample[i].a_rank>sample[sampleCanBeDone].a_rank)
+                            {
+                                sampleCanBeDone = i;
+                            }
+                        }
+                        else
+                            sampleCanBeDone = i;
+                    }
                 }
             }
-            if(nbCheck == 5 && nbMolTotal <= 10)
-            {
-                sampleCanBeDone = i;
-            }
-          }
-        }
         }
 
 
@@ -206,11 +225,12 @@ int main()
     }
 
     me.init(); /* nbSlot & */
-
+    int turn = 0;
     ///////////////////////////////// game loop ////////////////////////////////////////
     while (1)
     {
-      // long clkDep = clock();
+        turn++;
+        // long clkDep = clock();
 
         string target;
         int eta, score;
@@ -222,7 +242,7 @@ int main()
             cin >> target >> eta >> score >> storageA >> storageB >> storageC >> storageD >> storageE >> expertiseA >> expertiseB >> expertiseC >> expertiseD >> expertiseE;
 
             if(i == 0)
-              me.setRobot(target,eta,score,storageA, storageB, storageC, storageD, storageE,expertiseA, expertiseB, expertiseC, expertiseD, expertiseE);
+                me.setRobot(target,eta,score,storageA, storageB, storageC, storageD, storageE,expertiseA, expertiseB, expertiseC, expertiseD, expertiseE);
         }
 
         int availableA, availableB, availableC, availableD, availableE;
@@ -243,21 +263,23 @@ int main()
         {
             int sampleId;
             int carriedBy;
-            int rank;
+            int rankS;
             string expertiseGain;
             int health;
             int costA, costB, costC, costD, costE;
-            cin >> sampleId >> carriedBy >> rank >> expertiseGain >> health >> costA >> costB >> costC >> costD >> costE;
+            cin >> sampleId >> carriedBy >> rankS >> expertiseGain >> health >> costA >> costB >> costC >> costD >> costE;
             cin.ignore();
             if(carriedBy == 0)
             {
-                sample[mySamples].setSample(sampleId,health,costA,costB,costC,costD,costE);
+                sample[mySamples].setSample(sampleId,health,costA,costB,costC,costD,costE,rankS);
                 mySamples++;
             }
         }
 
         ///////////////////////////// MACHINE ETAT /////////////////////////////////////
         int delay;
+        int r3;
+
         switch(e)
         {
         case TO_SAMPLE:
@@ -266,6 +288,7 @@ int main()
             {
                 e = SAMPLE;
                 me.a_prevModule = "SAMPLES";
+                r3 = 0;
             }
             break;
 
@@ -283,12 +306,16 @@ int main()
 
         case SAMPLE:
 
-            if(me.a_nbSlotInUse == 0) // faire la selection pour avoir un de chaque
-                cout << "CONNECT 2" << endl;
-            else if(me.a_nbSlotInUse == 1)
-                cout << "CONNECT 2" << endl;
-            else if(me.a_nbSlotInUse == 2)
-                cout << "CONNECT 3" << endl;
+            for(int i=0;i<me.a_sampleCarry.size();i++)
+            {
+              if(me.a_sampleCarry[i].a_rank == 3)
+                r3++;
+            }
+
+            if(r3 == 0)
+              {cout << "CONNECT 3" << endl;r3++;}
+            else
+              cout << "CONNECT 2" << endl;
 
             me.a_nbSlotInUse++;
             if(me.a_nbSlotInUse == 3)
@@ -312,17 +339,17 @@ int main()
             cmdUse2 = false;
             if(me.a_nbSlotIdentify <3)
             {
-              cout << "CONNECT " << sample[me.a_nbSlotIdentify].a_sampleId << endl;
-              cmdUse2 = true;
-              me.a_nbSlotIdentify++;
+                cout << "CONNECT " << sample[me.a_nbSlotIdentify].a_sampleId << endl;
+                cmdUse2 = true;
+                me.a_nbSlotIdentify++;
             }
 
             if(me.a_nbSlotIdentify == 3)
             {
 
                 me.a_sampleCarry.clear();
-                for(int i=0;i<3;i++)
-                  me.a_sampleCarry.push_back(sample[i]);
+                for(int i=0; i<3; i++)
+                    me.a_sampleCarry.push_back(sample[i]);
 
                 sampleCanBeDone = me.check(me.a_sampleCarry,available);
                 if(sampleCanBeDone != -1)
@@ -337,7 +364,7 @@ int main()
 
                 if(cmdUse2 == false)
                 {
-                  cout << "WAIT chg d etat" << endl;
+                    cout << "WAIT chg d etat" << endl;
                 }
             }
             break;
@@ -357,7 +384,7 @@ int main()
 
             for(int i=0; i<5; i++) /* Recuperation des molecules nessesaire pour le sample */
             {
-              if(cmdUse == false)
+                if(cmdUse == false)
                 {
                     if(me.a_storage[i] + me.a_expertise[i] < me.a_sampleCarry[sampleCanBeDone].a_cost[i])
                     {
@@ -374,14 +401,14 @@ int main()
             }
 
             /* Test de faisabiliter des echantillons*/
-              if(me.a_storage[0] + me.a_expertise[0] >= me.a_sampleCarry[sampleCanBeDone].a_cost[0] &&
-                      me.a_storage[1] + me.a_expertise[1]>= me.a_sampleCarry[sampleCanBeDone].a_cost[1] &&
-                      me.a_storage[2] + me.a_expertise[2]>= me.a_sampleCarry[sampleCanBeDone].a_cost[2] &&
-                      me.a_storage[3] + me.a_expertise[3]>= me.a_sampleCarry[sampleCanBeDone].a_cost[3] &&
-                      me.a_storage[4] + me.a_expertise[4]>= me.a_sampleCarry[sampleCanBeDone].a_cost[4])
-              {
-                  e = TO_LAB;
-              }
+            if(me.a_storage[0] + me.a_expertise[0] >= me.a_sampleCarry[sampleCanBeDone].a_cost[0] &&
+                    me.a_storage[1] + me.a_expertise[1]>= me.a_sampleCarry[sampleCanBeDone].a_cost[1] &&
+                    me.a_storage[2] + me.a_expertise[2]>= me.a_sampleCarry[sampleCanBeDone].a_cost[2] &&
+                    me.a_storage[3] + me.a_expertise[3]>= me.a_sampleCarry[sampleCanBeDone].a_cost[3] &&
+                    me.a_storage[4] + me.a_expertise[4]>= me.a_sampleCarry[sampleCanBeDone].a_cost[4])
+            {
+                e = TO_LAB;
+            }
 
             if(cmdUse == false) /* cas 1 plus de molecule dispo cas 2: ...*/
             {
@@ -393,15 +420,12 @@ int main()
 
                 if(me.a_moleculesCarry == 10)
                 {
-                  cout << "WAIT chg de sample ?" << endl;
+                    cout << "WAIT chg de sample ?" << endl;
                 }
 
-            //if(e != TO_DIAG){
-                cerr << sampleCanBeDone  <<" " << me.a_moleculesCarry << endl << endl;
-                for(int i=0;i<5;i++)
-                  cerr << me.a_sampleCarry[sampleCanBeDone].a_cost[i] << endl;
-                cout << "WAIT Samples </3" << endl;
-              //  }
+                //if(e != TO_DIAG){
+                cout << "WAIT Samples </3 " << sampleCanBeDone << endl;
+                //  }
 
             }
 
@@ -438,11 +462,21 @@ int main()
 
             sampleCanBeDone = me.check(me.a_sampleCarry,available);
             if(sampleCanBeDone != -1)
-                e = TO_MOL;
+                /* Test de faisabiliter des echantillons*/
+                if(me.a_storage[0] + me.a_expertise[0] >= me.a_sampleCarry[sampleCanBeDone].a_cost[0] &&
+                        me.a_storage[1] + me.a_expertise[1]>= me.a_sampleCarry[sampleCanBeDone].a_cost[1] &&
+                        me.a_storage[2] + me.a_expertise[2]>= me.a_sampleCarry[sampleCanBeDone].a_cost[2] &&
+                        me.a_storage[3] + me.a_expertise[3]>= me.a_sampleCarry[sampleCanBeDone].a_cost[3] &&
+                        me.a_storage[4] + me.a_expertise[4]>= me.a_sampleCarry[sampleCanBeDone].a_cost[4])
+                {
+                    e = LAB;
+                }
+                else
+                    e = TO_MOL;
             else
                 e = TO_SAMPLE;
             break;
         }
-       // cerr << ((float)(clock()-clkDep)/CLOCKS_PER_SEC)*1000 << endl;
+        // cerr << ((float)(clock()-clkDep)/CLOCKS_PER_SEC)*1000 << endl;
     }
 }
